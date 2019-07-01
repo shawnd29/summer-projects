@@ -1,0 +1,292 @@
+---
+title: "Mental Health in Tech"
+author: "Shawn D'Souza"
+date: "June 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+**
+# Introduction
+**
+Assessment of mental health is a leading factor in today's society.  It goes doubly in this day and age where has taken a higher priority now more than ever. There are so many things that one can take into factor when looking at what makes people stress in their line of work.
+
+This survey was conducted to find what people think of their work and the various factors that they feel makes them stressed or not.   
+
+
+Before I dive into the technical part, I would like to thank the following people from who I have gained valuable insights while implementing this project:
+
+
+
+<a = href "https://www.kaggle.com/lislejoem">Lislejoem</a>
+<a = href "https://www.kaggle.com/lislejoem/recognition-of-importance-of-mental-health-in-us"></a>
+
+<a = href "https://www.kaggle.com/ekim01">Esther Kim</a>
+<a = href "https://www.kaggle.com/ekim01/predictors-of-mental-health-illness"></a>
+
+<a = href "https://www.kaggle.com/devisangeetha">DSangeetha</a>
+<a = href "https://www.kaggle.com/devisangeetha/analysis-on-survey-of-mental-health"></a>
+
+<a = href "https://www.kaggle.com/diegocalvo">Diego Calvo</a>
+<a = href "https://www.kaggle.com/diegocalvo/data-mining-of-mental-health"></a>
+
+<a = href "https://www.kaggle.com/benjaminlott">BenjaminLott</a>
+<a = href "https://www.kaggle.com/benjaminlott/machine-learning-for-mental-health-7-methods"></a>
+
+
+
+With credit given where credit is due, this Exploratory Data Analysis (EDA) encompasses with the amalgamation of concepts related to cleaning, defining and analyzing data to obtain meaningful insights. So let's dive in shall we?
+
+# 1. Load the packages
+
+```{r Load_Data_Packages,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE,results='hide'}
+
+# Function: installing and loading of packages
+install_load <- function (packages)  {   
+   
+  # Start loop to determine if each package is installed
+   for(package in packages){
+
+       # If package is installed locally, load
+       if(package %in% rownames(installed.packages()))
+          do.call('library', list(package))
+
+       # If package is not installed locally, download, then load
+       else {
+          install.packages(package, dependencies = TRUE)
+          do.call("library", list(package))
+       }
+   } 
+}
+
+# Generic libraries loading
+libs <- c("ggplot2", "maps", "plotly", "plyr", "dplyr", "rworldmap","stringr","lubridate", "plotly", "reshape2", "magrittr", "ggthemes", "tidyr", "DT", "lubridate","RColorBrewer")
+install_load(libs)
+
+# Specific methods libraries loading
+libs.methods <- c("C50", "lattice", "caret", "nnet", "e1071","Matrix", "foreach","glmnet","C50","randomForest","ipred","rpart")
+install_load(libs.methods)
+
+# Data loading
+#data <- read.csv("../input/survey.csv")
+data <- read.csv("survey.csv")
+data
+```
+
+# Determine the different values in each of the categories
+```{r categorical_splits, eval=TRUE,echo=TRUE}
+
+
+data <- data[ , !(names(data) %in% "Timestamp")]
+
+
+#Finding the NA Categories
+sapply(data, function(x) sum(is.na(x)))
+
+
+data %<>% dplyr::select(-c(comments, state, work_interfere))
+
+categories <- names(data)
+print(categories)
+
+for (val in categories){ 
+    print(unique(data[val])) 
+    
+}
+
+```
+
+#Deep diving into the Genders
+
+This was very interesting to work with as this showed the diversity of data and how to clean data to split into isnights
+
+```{r}
+#Diving into the genders
+male_str = c("male", "m", "male-ish", "maile", "mal", "male (cis)", "make", "male ", "man","msle", "mail", "malr","cis man", "Cis Male", "cis male")
+trans_str = c("trans-female", "something kinda male?", "queer/she/they", "non-binary","nah", "all", "enby", "fluid", "genderqueer", "androgyne", "agender", "male leaning androgynous", "guy (-ish) ^_^", "trans woman", "neuter", "female (trans)", "queer", "ostensibly male, unsure what that really means")           
+female_str = c("cis female", "f", "female", "woman",  "femake", "female ","cis-female/femme", "female (cis)", "femail")
+
+data$Gender %<>% str_to_lower()
+data$Gender <- sapply(as.vector(data$Gender), function(x) if(x %in% trans_str) "trans" else x )
+data$Gender <- sapply(as.vector(data$Gender), function(x) if(x %in% male_str) "male" else x )
+data$Gender <- sapply(as.vector(data$Gender), function(x) if(x %in% female_str) "female" else x )
+
+```
+
+
+
+
+
+```{r}
+print(unique(data$Gender))
+data %<>% filter(Gender != "a little about you")
+data %<>% filter(Gender != "p")
+print(unique(data$Gender))
+```
+
+
+# Clean the Age category: Since there are anomalies within the age bracket
+
+```{r}
+# Age categorization 
+data$Age <-
+  ifelse(data$Age < 18, "",   
+  ifelse(data$Age > 100, "", data$Age)) %>% 
+  as.numeric()
+
+```
+```{r}
+#TechData <- data %>%
+  #filter(tech_company == "Yes" )& # Making sure dataset includes only those in a tech company
+         #format(Timestamp, "%Y") == 2014 & # Making sure dataset includes only responses from 2014
+         
+summary(data)
+
+```
+
+
+```{r}
+
+# Age categorization
+#Finding the NA Categories
+sapply(data, function(x) sum(is.na(x)))
+data <- data[!is.na(data$Age),]
+data <- data[!is.na(data$self_employed),]
+```
+
+```{r}
+print(head(data))
+```
+# Basic Exploratory Data Analysis
+
+
+```{r}
+#Based on people taking treatments for their stress
+for(i in 1:length(data)){
+  aux <- prop.table(table(data$treatment, data[,i]), 1)*100 
+  percent <- round(max(abs(aux[1,]-aux[2,])), digits = 2)
+
+  if(percent > 10 & percent < 99){
+    
+    # Data preparing to visualization
+    aux <- prop.table(table(data$treatment, data[,i]), 1)*100 
+    nom <- colnames(aux)
+    taken_treatment <- c(rep("Yes",ncol(aux)),rep("No",ncol(aux)))
+    val <- append(aux[1,], aux[2,])
+    data.aux<-data.frame(nom=nom,type=taken_treatment ,val=val)
+    
+    # Use of the library ggplot2 to data visualization 
+    g <- ggplot() + geom_bar(data=data.aux,aes(x=nom, y=val,fill=taken_treatment),stat='identity',position='dodge')+
+      coord_flip() +
+      labs(
+        x = "Importance",
+        y = "",
+        title = paste("Mental Health comparation about ", names(data[i]), sep=""),
+        subtitle = paste("The most different is ", percent, "%", sep=""),
+        caption = "\nDetermined by matrix of covariances"
+        ) %>% suppressWarnings()
+    print(g)
+  }
+
+}
+```
+```{r}
+data1=data
+# Age categorization#
+data1$Age<-cut(data1$Age, breaks = c(16, 33, 47, 100), labels = c('Millennials', 'Gen X', 'Baby Boomers'))
+
+age_group <-data1%>%
+  group_by(Age) %>%
+  dplyr::summarize(count = n())
+# Visualize the number of subjects in each Age Group  
+ggplot(age_group, aes(x = Age, y = count, fill = Age)) +  
+  geom_bar(stat = "identity", alpha = 0.5) +
+  xlab("Age Group") + 
+  ylab("No of People") + 
+  ggtitle("Comparing Age Group in the 2014 Mental Health in Tech Survey")
+```
+
+
+
+
+```{r}
+country <- data1$Country
+ill <- data1$treatment
+data1.aux <- data.frame(country,ill)
+
+# Data frame definition
+data1.result <- ddply(data1.aux,.(country,ill), nrow)
+
+# Frecuency accumulation of treated people
+frec <- data.frame(id = data1.result$country
+                   , value = data1.result$V1)
+
+frec <- mutate(group_by(frec,id), cumsum=cumsum(value))
+
+data1.all <- data.frame(id=frec$id,num=frec$cumsum)
+data1.all <- data1.all[with(data1.all, order(-data1.all$num)), ]
+data1.all <- data1.all[!duplicated(data1.all$id),]
+data1.all <- data1.all[with(data1.all, order(data1.all$id)), ]
+
+# Putting treated people in negative way
+for (i in 1:length(data1.result$country)){
+    if(data1.result$ill[i] =="Yes"){
+      data1.result$V1[i] <- data1.result$V1[i]*-1
+    }
+}
+
+# Frecuency accumulation of treated people
+frec <- data.frame(id = data1.result$country
+                          , value = data1.result$V1)
+
+frec <- mutate(group_by(frec,id), cumsum=cumsum(value))
+
+data1.aux <- data.frame(id=frec$id,num=frec$cumsum)
+data1.aux <- data1.aux[with(data1.aux, order(-data1.aux$num)), ]
+data1.aux <- data1.aux[!duplicated(data1.aux$id),]
+data1.aux <- data1.aux[with(data1.aux, order(data1.aux$id)), ]
+
+# Making relative treated people
+data1 <- data.frame(id=data1.all$id)
+data1$id <- data1.aux$id
+data1$num <- (data1.aux$num / data1.all$num )
+data1$category <- data1$num
+
+# Categorization of treated people by geographic location
+data1$category  <- cut(data1$num, breaks=c(-Inf, -0.75, -0.5, -0.35, 0, 0.35, 0.5, 0.75, Inf))
+levels(data1$category) <- c("-70%","-50%","-30%","-15%","+15%","+30%","+50%","+70%")
+
+d <- data.frame( country=data1$id, value=data1$cate)
+n <- joinCountryData2Map(d, joinCode="NAME", nameJoinColumn="country")
+
+## 39 codes from your data successfully matched countries in the map
+## 0 codes from your data failed to match with a country code in the map
+## 204 codes from the map weren't represented in your data
+
+# Visualization of treated people by geographic location
+mapCountryData(n, nameColumnToPlot="value", mapTitle="World" ,catMethod="categorical",
+               colourPalette=c('red','blue'),missingCountryCol="grey", aspect =0)
+```
+
+Athough this is a brief scraping, this shows the bare-bones of data analysis with R. 
+
+All in all R is still a nuanced concept that I would love to explore fruther into. 
+
+
+
+# Do Reach Out!
+
+If you found something that catches your eye or just have a chat about data science topics in general, I will be more than happy to connect with you on:
+
+LinkedIn: https://www.linkedin.com/in/shawn-dsouza/
+
+My Website: https://shawndsouza29.wixsite.com/portfolio
+
+This notebook will always be a work in progress. Please leave any comments about further improvements to the notebook! Any feedback or constructive criticism is greatly appreciated. Thank you guys!
+
+
+
