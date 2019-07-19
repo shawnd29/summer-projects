@@ -5,7 +5,7 @@ date: "July 17, 2019"
 output: html_document
 ---
 ***
-# Introduction
+#Introduction
 ***
 Let's face it, the financial market is one of the oldest and most dominant industries of all time. From the time-immemorial bartering system, to the hyper speed stocks where value can skyrocket or plummet in a matter of seconds, it is amazing to see how diverse our application of this industry has taken us.
 
