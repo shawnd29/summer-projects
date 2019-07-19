@@ -1,0 +1,172 @@
+---
+title: "Term Loans"
+author: "Shawn D'Souza"
+date: "July 17, 2019"
+output: html_document
+---
+***
+# Introduction
+***
+Let's face it, the financial market is one of the oldest and most dominant industries of all time. From the time-immemorial bartering system, to the hyper speed stocks where value can skyrocket or plummet in a matter of seconds, it is amazing to see how diverse our application of this industry has taken us.
+
+With this, leaning about today's market is an important asset in determining the best features. One of the most important insights is to learn about the features that shape the market. This project is used to determine these features through a correlation funnel.
+
+To give credit where credit is due, this was a market analysis project that referenced Matt Dancho's Excel to R, The 10X Productivity Boost which highlights the benefits of R over Excel with large datasets.  
+
+https://www.business-science.io/business/2019/02/20/excel-to-r-part-1.html
+
+Now that everything is said and done, it is time to start with the analysis.
+
+***
+# Set up
+***
+
+Firstly, let's get the ball running by setting up the markdown and loading the libraries.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = FALSE,
+    message = FALSE,
+    warning = FALSE)
+```
+
+
+```{r}
+# Load Libraries
+library(tidyverse)
+library(readxl)
+library(recipes)
+library(tidyquant)
+library(ggrepel)
+library(correlationfunnel)
+library(dplyr)
+```
+
+With this we can now read the excel file which demarcates every spreadsheet it contains.
+
+```{r}
+# Read the sheets
+path <- "bank_term_deposit_marketing_analysis.xlsx"
+sheets <- sheets <- excel_sheets(path)
+sheets
+```
+***
+# Analysis
+***
+We will now map each seet to see the various datasets within each sheet.
+
+```{r}
+# Look at the data within each sheet
+sheets %>%
+    map(~ read_excel(path = path, sheet = .)) %>%
+     set_names(sheets)
+```
+With this, we will invoke a mapper to scan each sheet and reduce this into a singlular table that is joined by the common ID. This is equivalent to the VLOOKUP function within Excel.
+
+```{r}
+data_joined_tbl <- sheets[4:7] %>%
+    map(~ read_excel(path = path, sheet = .)) %>%
+    reduce(left_join, by = "ID")
+```
+Now that the data has been joined, let's observe what it looks like within the table.
+
+```{r}
+data_joined_tbl %>%
+    slice(1:10) %>%
+    knitr::kable(format = "markdown")
+```
+
+Now that we have the data, let us perform some Exploatory Data Analysis to evaluate the dataset.
+
+```{r}
+# Null values 
+marketing_campaign_tbl %>%
+    map_df(~ sum(is.na(.))) %>%
+    gather(key = "feature", value = "na_count") %>%
+    arrange(desc(na_count))
+```
+Since there are no missing values within the dataset, we can use one hot encoding to demarcate each labels. The quantatative values are binned into categoricalvalues as shown below:
+
+
+```{r}
+#One Hot Encoding
+
+marketing_campaign_binary_tbl <- marketing_campaign_tbl %>%
+    # Drop ID because this is not a predictive feature
+    select(-ID) %>% 
+    # Convert remaining columns to binary format
+    binarize(n_bins = 4, thresh_infreq = 0.0001)
+
+# Here's the first 10 rows
+marketing_campaign_binary_tbl %>%
+    head(10) 
+```
+In order to maxmimize the value of the correlation funnel, we need to only accecpt the tables which indicate that there exists a TERM_DEPOSIT
+
+```{r}
+
+marketing_campaign_corr_tbl <- marketing_campaign_binary_tbl %>%
+    correlate(TERM_DEPOSIT__yes)
+
+# First 10 rows
+marketing_campaign_corr_tbl %>% 
+    head(10)
+
+```
+A correlation funnel is used to check the significance of each feature within a dataset. The further apart from the mean, the more likely that the function has a high correlation.
+
+```{r}
+
+marketing_campaign_corr_tbl %>%
+    plot_correlation_funnel()
+```
+
+With the features at hand, let us observe the strength of one of them, notably the TERM_DEPOSIT feature to measure it's weight.
+
+```{r}
+
+marketing_campaign_tbl %>%
+    
+    # Calculate Median by Term Deposit Enrollment (Yes/No)
+    select(TERM_DEPOSIT, DURATION) %>%
+    group_by(TERM_DEPOSIT) %>%
+    summarize(DURATION_MEDIAN = median(DURATION)) %>%
+    
+    # Make a Bar Plot
+    ggplot(aes(TERM_DEPOSIT, DURATION_MEDIAN, fill = TERM_DEPOSIT)) +
+    geom_col() +
+    geom_label(aes(label = DURATION_MEDIAN), color = "#2c3e50",
+               fill = "white", hjust = "inward") +
+    coord_flip() +
+    theme_tq() +
+    scale_fill_tq() +
+    labs(title = "Duration - A Key Factor in Enrollment",
+         y = "Median Duration", x = "Enrolled in Term Deposit?")
+```
+The correlation funnel can also be further emphasized to work on the bin size.
+
+```{r}
+marketing_campaign_tbl %>%
+    select(-ID) %>%
+    binarize(n_bins = 4, thresh_infreq = 0.0001) %>%
+    correlate(TERM_DEPOSIT__yes) %>%
+    plot_correlation_funnel()
+```
+***
+# Conclusion
+***
+
+This is the basis of handling the dataset within R. I plan on looking at the machine learning models some time soon.
+
+
+***
+# Do Reach Out!
+***
+If you found something that catches your eye or just have a chat about data science topics in general, I will be more than happy to connect with you on:
+
+LinkedIn: https://www.linkedin.com/in/shawn-dsouza/
+
+My Website: https://shawndsouza29.wixsite.com/portfolio
+
+This notebook will always be a work in progress. Please leave any comments about further improvements to the notebook! Any feedback or constructive criticism is greatly appreciated. Thank you guys!
+
